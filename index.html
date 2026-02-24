@@ -3,36 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Band Sync Pro 🎸</title>
+    <title>Band Sync 🤘</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Empêche le zoom auto sur iPhone quand on clique sur l'input */
         input[type="text"] { font-size: 16px !important; }
+        .best-day { animation: pulse 2s infinite; }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(250, 204, 21, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0); }
+        }
     </style>
 </head>
 <body class="bg-slate-950 text-white p-4 font-sans pb-24">
     <div class="max-w-md mx-auto">
         
-        <div class="flex justify-between items-start mb-6">
+        <div class="flex justify-between items-center mb-6">
             <div>
                 <h1 class="text-3xl font-black italic text-yellow-400 leading-none">BAND SYNC</h1>
-                <p class="text-slate-500 text-[10px] uppercase tracking-widest mt-1 text-left">Répètes 19h-21h • Mode Test</p>
+                <p class="text-slate-500 text-[10px] uppercase tracking-widest mt-1">Répètes 19h-21h</p>
             </div>
-            <button onclick="window.resetData()" class="bg-slate-800 px-3 py-1 rounded-lg text-[10px] uppercase font-bold text-slate-500 hover:bg-red-900 hover:text-white transition-colors">Effacer</button>
+            <div class="flex gap-2">
+                <button onclick="showBestDay()" class="bg-yellow-400 text-black p-2 rounded-lg text-[10px] font-black uppercase shadow-lg">🏆 Top</button>
+                <button onclick="window.resetData()" class="bg-slate-800 p-2 rounded-lg text-[10px] uppercase font-bold text-slate-500">Reset</button>
+            </div>
         </div>
 
         <section class="mb-6 bg-slate-900 p-4 rounded-3xl border border-slate-800 shadow-2xl">
-            <label class="text-[10px] uppercase font-bold text-slate-500 ml-1">Ton Prénom</label>
-            <input id="nameInput" type="text" placeholder="Thomas, Julie..." 
+            <label class="text-[10px] uppercase font-bold text-slate-500 ml-1">Qui vote ?</label>
+            <input id="nameInput" type="text" placeholder="Entre ton prénom..." 
                 class="w-full bg-transparent text-xl font-bold outline-none text-yellow-100 placeholder:text-slate-800">
         </section>
 
-        <div id="calendarGrid" class="grid grid-cols-2 gap-3">
-            </div>
+        <div id="calendarGrid" class="grid grid-cols-2 gap-3"></div>
 
         <div class="fixed bottom-4 left-0 right-0 px-4">
-            <div class="max-w-md mx-auto bg-yellow-400 text-black text-center py-3 rounded-2xl font-black shadow-2xl text-xs uppercase tracking-tighter">
-                Tapote une date pour t'inscrire
+            <div class="max-w-md mx-auto bg-slate-900 border border-slate-700 text-white text-center py-3 rounded-2xl font-bold text-xs">
+                Tapote une date pour voter
             </div>
         </div>
     </div>
@@ -41,18 +48,16 @@
         const grid = document.getElementById('calendarGrid');
         const nameInput = document.getElementById('nameInput');
         
-        // Charger les données sauvegardées sur le téléphone
         let globalData = JSON.parse(localStorage.getItem('bandDataLocal')) || {};
 
-        // Sauvegarder le nom automatiquement
         nameInput.value = localStorage.getItem('bandUserName') || "";
         nameInput.oninput = () => {
             localStorage.setItem('bandUserName', nameInput.value);
             renderCalendar();
         };
 
-        // Générer les 30 prochains jours à partir d'aujourd'hui
-        const dates = Array.from({length: 30}, (_, i) => {
+        // Générer 90 jours (3 mois)
+        const dates = Array.from({length: 90}, (_, i) => {
             const d = new Date();
             d.setDate(d.getDate() + i);
             return { 
@@ -61,65 +66,69 @@
             };
         });
 
-        // Fonction pour vider les données
         window.resetData = () => {
-            if(confirm("Vider ton planning local ?")) {
+            if(confirm("Effacer tous les votes ?")) {
                 globalData = {};
                 localStorage.removeItem('bandDataLocal');
                 renderCalendar();
             }
         };
 
-        // Fonction pour s'ajouter/se retirer d'une date
         window.toggleDate = (dateId) => {
             const name = nameInput.value.trim();
-            if (!name) {
-                alert("Indique ton prénom en haut pour pouvoir cliquer !");
-                return;
-            }
+            if (!name) return alert("Indique ton prénom !");
 
             let users = globalData[dateId] || [];
-            
-            // On vérifie si le nom est déjà présent (en ignorant les majuscules)
             const index = users.findIndex(u => u.toLowerCase() === name.toLowerCase());
 
-            if (index !== -1) {
-                users.splice(index, 1); // On retire
-            } else {
-                users.push(name); // On ajoute
-            }
+            if (index !== -1) users.splice(index, 1);
+            else users.push(name);
 
             globalData[dateId] = users;
             localStorage.setItem('bandDataLocal', JSON.stringify(globalData));
             renderCalendar();
         };
 
+        function showBestDay() {
+            let maxVotes = 0;
+            let bestDayLabel = "";
+            
+            for (const [id, users] of Object.entries(globalData)) {
+                if (users.length > maxVotes) {
+                    maxVotes = users.length;
+                    const dateObj = dates.find(d => d.id === id);
+                    bestDayLabel = dateObj ? dateObj.label : id;
+                }
+            }
+            
+            if (maxVotes > 0) {
+                alert(`🏆 Meilleur créneau : ${bestDayLabel} avec ${maxVotes} votant(s) !`);
+            } else {
+                alert("Aucun vote pour le moment.");
+            }
+        }
+
         function renderCalendar() {
-            if (!grid) return;
             grid.innerHTML = '';
             const myName = nameInput.value.trim().toLowerCase();
 
             dates.forEach(date => {
                 const users = globalData[date.id] || [];
                 const isMe = myName && users.some(u => u.toLowerCase() === myName);
-                const isDrummerPresent = users.some(u => u.toLowerCase().includes('batteur') || u.toLowerCase().includes('drums'));
                 
-                // Style dynamique selon le nombre de personnes
-                let stateClass = 'bg-slate-900 border-slate-800'; // Vide
-                if (users.length >= 7) stateClass = 'bg-green-600 border-green-400';
-                else if (users.length > 0) stateClass = 'bg-slate-800 border-slate-700';
+                let stateClass = 'bg-slate-900 border-slate-800 opacity-60';
+                if (users.length > 0) stateClass = 'bg-slate-800 border-slate-700 opacity-100';
 
                 const card = document.createElement('div');
-                card.className = `p-4 rounded-2xl border-2 transition-all active:scale-95 flex flex-col justify-between min-h-[130px] shadow-lg ${stateClass} ${isMe ? 'ring-2 ring-yellow-400' : ''}`;
+                card.className = `p-4 rounded-2xl border-2 transition-all active:scale-95 flex flex-col justify-between min-h-[110px] shadow-lg ${stateClass} ${isMe ? 'ring-2 ring-yellow-400 border-yellow-400/50' : ''}`;
                 
                 card.innerHTML = `
-                    <div class="relative">
+                    <div>
                         <div class="text-[10px] uppercase font-bold text-slate-400">${date.label}</div>
-                        <div class="text-2xl font-black">${users.length}<span class="text-sm opacity-40">/7</span></div>
-                        ${users.length > 0 && !isDrummerPresent ? '<span class="absolute top-0 right-0 text-lg" title="Pas de batteur">🥁❌</span>' : ''}
+                        <div class="text-xl font-black">${users.length} <span class="text-[10px] font-normal opacity-50 text-slate-400 uppercase">Présent(s)</span></div>
                     </div>
-                    <div class="text-[10px] font-medium italic text-slate-300 leading-tight">
-                        ${users.length > 0 ? users.join(', ') : 'Libre'}
+                    <div class="text-[9px] font-medium italic text-slate-400 mt-2 truncate">
+                        ${users.length > 0 ? users.join(', ') : 'Aucun vote'}
                     </div>
                 `;
 
@@ -128,7 +137,6 @@
             });
         }
 
-        // Lancer l'affichage au chargement
         renderCalendar();
     </script>
 </body>
